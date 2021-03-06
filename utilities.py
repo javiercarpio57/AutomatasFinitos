@@ -19,7 +19,7 @@ def getTransitionFunction(transitions):
 
         for n in values:
             if str(keys[1]) in f[str(keys[0])].keys():
-                f[str(keys[0])][str(keys[1]) + '_'*cont] = str(n)
+                f[str(keys[0])][str(keys[1]) + ' '*cont] = str(n)
                 cont += 1
             else:
                 f[str(keys[0])][str(keys[1])] = str(n)

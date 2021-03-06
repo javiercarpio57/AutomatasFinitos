@@ -14,18 +14,20 @@ class AFN:
 
         self.Evaluar(expresion_regular)
 
-    def e_closure(self, state):
-        eclosure = [state.id]
-        primeraVez = True
-        newStates = []
+    def MergeNodes(self, nodeA, nodeB):
+        print('MERGE:', nodeA.id, nodeB.id)
+        print(nodeB.VerTransisiones())
+        # Quitar de estados
+        i = self.estados.index(nodeB)
+        self.estados.pop(i)
 
-        while not newStates or primeraVez:
-            if primeraVez:
-                primeraVez = False
-            
-            print('a')
+        # Funcion de transicion
+        for k, v in self.funcion_transicion.copy().items():
+            n, s = [*k]
 
-        return eclosure
+            if n == nodeB.id:
+                self.funcion_transicion.pop(k)
+                self.funcion_transicion[(nodeA.id, s)] = v
 
     def AgregarTransicion(self, estado_i, trans, estado_f):
         if (estado_i, trans) in self.funcion_transicion.keys():
@@ -178,9 +180,14 @@ class AFN:
                 self.AgregarTransicion(nodoFinal.id, epsilon, nodoF.id)
                 self.AgregarTransicion(nodoFinalA.id, epsilon, nodoF.id)
 
-                return nodoI, nodoI, nodoIB, nodoF
+                return nodoI, nodoF, nodoIB, nodoF
 
-    def CreateCATNodes(self, a, b, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFinal = None):
+    def CreateCATNodes(self, a, b, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
+        if a not in self.simbolos and a != None:
+            self.simbolos.append(a)
+        if b not in self.simbolos and b != None:
+            self.simbolos.append(b)
+        
         if not haGeneradoPrimerGrafo:
             # Nodo final de CAT
             node3 = Node(self.ids + 3, [])
@@ -196,42 +203,53 @@ class AFN:
             self.estados.append(node2)
             self.estados.append(node3)
 
-            self.AgregarTransicion(node1, a, node2)
-            self.AgregarTransicion(node2, b, node3)
+            self.AgregarTransicion(node1.id, a, node2.id)
+            self.AgregarTransicion(node2.id, b, node3.id)
 
-            return node1, node3
+            return node1, node3, node1, node3
         else:
             if a != None and b != None:
-                nodoProvisionalB = Node(self.ids + 2, [])
-                nodoProvisionalA = Node(self.ids + 1, [(b, nodoProvisionalB)])
+                # Nodo final de CAT
+                node3 = Node(self.ids + 3, [])
+
+                # Nodo en medio de CAT
+                node2 = Node(self.ids + 2, [(b, node3)])
+
+                # Nodo inicial de CAT
+                node1 = Node(self.ids + 1, [(a, node2)])
+                self.ids += 3
+
+                self.estados.append(node1)
+                self.estados.append(node2)
+                self.estados.append(node3)
+
+                self.AgregarTransicion(node1.id, a, node2.id)
+                self.AgregarTransicion(node2.id, b, node3.id)
+
+                return nodoInicial, nodoFA, node1, node3
+            elif a == None and b == None:
+                self.MergeNodes(nodoFA, nodoIB)
+
+                return nodoInicial, nodoFinal, nodoInicial, nodoFinal
                 
-                self.estados.append(nodoProvisionalA)
-                self.estados.append(nodoProvisionalB)
-
-                nodoFinal.AddTransition(a, nodoProvisionalA)
-                self.AgregarTransicion(nodoFinal, a, nodoProvisionalA)
-                self.AgregarTransicion(nodoProvisionalA, b, nodoProvisionalB)
-
-                return nodoInicial, nodoProvisionalB
-            # elif a == None and b == None:
-
-            elif a != None:
-                nodoProvisional = Node(self.ids + 1, [(a, nodoInicial)])
-                self.estados.append(nodoProvisional)
-                self.AgregarTransicion(nodoProvisional, a, nodoInicial)
+            elif a != None and b == None:
+                nodoI = Node(self.ids + 1, [(a, nodoInicial)])
+                self.estados.append(nodoI)
+                self.AgregarTransicion(nodoI.id, a, nodoInicial.id)
                 self.ids += 1
 
-                return nodoProvisional, nodoFinal
-            elif b != None:
-                nodoProvisional = Node(self.ids + 1, [])
-                self.estados.append(nodoProvisional)
-                self.AgregarTransicion(nodoFinal, b, nodoProvisional)
-                nodoFinal.AddTransition(b, nodoProvisional)
+                return nodoI, nodoFinal, nodoI, nodoFinal
+
+            elif a == None and b != None:
+                nodoF = Node(self.ids + 1, [])
+                self.estados.append(nodoF)
+                self.AgregarTransicion(nodoFinal.id, b, nodoF.id)
+                nodoFinal.AddTransition(b, nodoF)
                 self.ids += 1
 
-                return nodoInicial, nodoProvisional
+                return nodoInicial, nodoF, nodoInicial, nodoF
 
-    def CreateSTARNodes(self, a, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFinal = None):
+    def CreateSTARNodes(self, a, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
         if not haGeneradoPrimerGrafo:
             # Nodo final de CAT
             node4 = Node(self.ids + 4, [])
@@ -245,7 +263,7 @@ class AFN:
             # Nodo inicial de CAT
             node1 = Node(self.ids + 1, [(epsilon, node2), (epsilon, node4)])
 
-            node4.AddTransition(epsilon, node2)
+            node3.AddTransition(epsilon, node2)
             self.ids += 4
 
             self.estados.append(node1)
@@ -253,32 +271,33 @@ class AFN:
             self.estados.append(node3)
             self.estados.append(node4)
 
-            self.AgregarTransicion(node1, epsilon, node2)
-            self.AgregarTransicion(node1, epsilon, node4)
-            self.AgregarTransicion(node2, a, node3)
-            self.AgregarTransicion(node3, epsilon, node4)
-            self.AgregarTransicion(node4, epsilon, node2)
+            self.AgregarTransicion(node1.id, epsilon, node2.id)
+            self.AgregarTransicion(node1.id, epsilon, node4.id)
+            self.AgregarTransicion(node2.id, a, node3.id)
+            self.AgregarTransicion(node3.id, epsilon, node4.id)
+            self.AgregarTransicion(node3.id, epsilon, node2.id)
 
-            return node1, node4
+            return node1, node4, node1, node4
         else:
             # Nodo final de CAT
-            node4 = Node(self.ids + 2, [(epsilon, nodoInicial)])
+            node4 = Node(self.ids + 2, [])
 
             # Nodo inicial de CAT
             node1 = Node(self.ids + 1, [(epsilon, nodoInicial), (epsilon, node4)])
 
             nodoFinal.AddTransition(epsilon, node4)
+            nodoFinal.AddTransition(epsilon, nodoInicial)
             self.ids += 2
 
             self.estados.append(node1)
             self.estados.append(node4)
 
-            self.AgregarTransicion(node1, epsilon, nodoInicial)
-            self.AgregarTransicion(node1, epsilon, node4)
-            self.AgregarTransicion(nodoFinal, epsilon, node4)
-            self.AgregarTransicion(node4, epsilon, nodoInicial)
+            self.AgregarTransicion(node1.id, epsilon, nodoInicial.id)
+            self.AgregarTransicion(node1.id, epsilon, node4.id)
+            self.AgregarTransicion(nodoFinal.id, epsilon, node4.id)
+            self.AgregarTransicion(nodoFinal.id, epsilon, nodoInicial.id)
 
-            return node1, node4
+            return node1, node4, node1, node4
 
     def ObtenerPrecedencia(self, operator):
         if operator == '|':
@@ -291,8 +310,8 @@ class AFN:
 
     def Operar(self, x, y, operator, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
         if operator == '|': return self.CreateORNodes(x, y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
-        if operator == '.': return self.CreateCATNodes(x, y, haGeneradoPrimerGrafo, nodoInicial, nodoFinal)
-        if operator == '*': return self.CreateSTARNodes(y, haGeneradoPrimerGrafo, nodoInicial, nodoFinal)
+        if operator == '.': return self.CreateCATNodes(x, y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
+        if operator == '*': return self.CreateSTARNodes(y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
 
     def EsSimbolo(self, digit):
         digitos = 'abcdefghijklmnopqrstuvwxyz'
@@ -396,7 +415,6 @@ class Node:
         return sTransicion
 
 
-
 exp = input('Ingrese expresion regular: ')
 
 afn = AFN(exp)
@@ -409,7 +427,6 @@ print('------------------------------')
 for keys, values in afn.funcion_transicion.items():
     print(f'({keys[0]}, {keys[1]}): {list(map(lambda nodo: nodo, values))}')
 
-# utilities.graph_automata()
 states = utilities.getStates(afn.estados)
 initial_state = str(afn.estado_inicial.id)
 accepting_state = {str(afn.estado_final.id)}
