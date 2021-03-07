@@ -12,12 +12,48 @@ class AFN:
         self.simbolos = []
         self.ids = 0
 
+        expresion_regular = self.CleanExpression(expresion_regular)
+        print(expresion_regular)
         self.Evaluar(expresion_regular)
+
+    def CleanExpression(self, regular):
+        real = []
+        exp = []
+        hasExpression = False
+        hasPlus = False
+        initial = []
+        final = 0
+        i = 0
+
+        if ')+' in regular:
+            while i < len(regular):
+                if regular[i] == '(':
+                    initial.append(i)                        
+
+                if regular[i] == ')':
+                    real.append(regular[i])
+                    if regular[i + 1] == '+':
+                        final = i + 1
+                        real.append('*')
+                        real.append('.')
+                        real.append(regular[initial.pop() : final])
+                        i += 1
+                    else:
+                        initial.pop()
+
+                else:
+                    real.append(regular[i])
+                i += 1
+
+            return ''.join(real)
+        else:
+            return regular
 
     def MergeNodes(self, nodeA, nodeB):
         print('MERGE:', nodeA.id, nodeB.id)
         print(nodeB.VerTransisiones())
         # Quitar de estados
+        nodeA.transitions += nodeB.transitions
         i = self.estados.index(nodeB)
         self.estados.pop(i)
 
@@ -233,9 +269,9 @@ class AFN:
                 return nodoInicial, nodoFinal, nodoInicial, nodoFinal
                 
             elif a != None and b == None:
-                nodoI = Node(self.ids + 1, [(a, nodoInicial)])
+                nodoI = Node(self.ids + 1, [(a, nodoIB)])
                 self.estados.append(nodoI)
-                self.AgregarTransicion(nodoI.id, a, nodoInicial.id)
+                self.AgregarTransicion(nodoI.id, a, nodoIB.id)
                 self.ids += 1
 
                 return nodoI, nodoFinal, nodoI, nodoFinal
@@ -243,8 +279,8 @@ class AFN:
             elif a == None and b != None:
                 nodoF = Node(self.ids + 1, [])
                 self.estados.append(nodoF)
-                self.AgregarTransicion(nodoFinal.id, b, nodoF.id)
-                nodoFinal.AddTransition(b, nodoF)
+                self.AgregarTransicion(nodoFA.id, b, nodoF.id)
+                nodoFA.AddTransition(b, nodoF)
                 self.ids += 1
 
                 return nodoInicial, nodoF, nodoInicial, nodoF
@@ -279,32 +315,74 @@ class AFN:
 
             return node1, node4, node1, node4
         else:
-            # Nodo final de CAT
-            node4 = Node(self.ids + 2, [])
+            if a == None:
+                # Nodo final de *
+                node4 = Node(self.ids + 2, [])
 
-            # Nodo inicial de CAT
-            node1 = Node(self.ids + 1, [(epsilon, nodoInicial), (epsilon, node4)])
+                # Nodo inicial de *
+                node1 = Node(self.ids + 1, [(epsilon, nodoIB), (epsilon, node4)])
 
-            nodoFinal.AddTransition(epsilon, node4)
-            nodoFinal.AddTransition(epsilon, nodoInicial)
-            self.ids += 2
+                nodoFinal.AddTransition(epsilon, node4)
+                nodoFinal.AddTransition(epsilon, nodoIB)
+                self.ids += 2
 
-            self.estados.append(node1)
-            self.estados.append(node4)
+                self.estados.append(node1)
+                self.estados.append(node4)
 
-            self.AgregarTransicion(node1.id, epsilon, nodoInicial.id)
-            self.AgregarTransicion(node1.id, epsilon, node4.id)
-            self.AgregarTransicion(nodoFinal.id, epsilon, node4.id)
-            self.AgregarTransicion(nodoFinal.id, epsilon, nodoInicial.id)
+                self.AgregarTransicion(node1.id, epsilon, nodoInicial.id)
+                self.AgregarTransicion(node1.id, epsilon, node4.id)
+                self.AgregarTransicion(nodoFinal.id, epsilon, node4.id)
+                self.AgregarTransicion(nodoFinal.id, epsilon, nodoIB.id)
 
-            return node1, node4, node1, node4
+                if nodoIB.id == nodoInicial.id:
+                    return node1, node4, node1, node4
+                else:
+                    return nodoInicial, nodoFA, node1, node4
+
+            elif a != None:
+                # Nodo final de *
+                node4 = Node(self.ids + 4, [])
+
+                # Nodo en medio final de *
+                node3 = Node(self.ids + 3, [(epsilon, node4)])
+
+                # Nodo en medio inicial de *
+                node2 = Node(self.ids + 2, [(a, node3)])
+
+                # Nodo inicial de *
+                node1 = Node(self.ids + 1, [(epsilon, node2), (epsilon, node4)])
+
+                node3.AddTransition(epsilon, node2)
+                self.ids += 4
+
+                self.estados.append(node1)
+                self.estados.append(node2)
+                self.estados.append(node3)
+                self.estados.append(node4)
+
+                self.AgregarTransicion(node1.id, epsilon, node2.id)
+                self.AgregarTransicion(node1.id, epsilon, node4.id)
+                self.AgregarTransicion(node2.id, a, node3.id)
+                self.AgregarTransicion(node3.id, epsilon, node4.id)
+                self.AgregarTransicion(node3.id, epsilon, node2.id)
+
+                return nodoInicial, nodoFA, node1, node4
+
+    def CreatePlusNodes(self, a, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
+        self.estado_inicial, node2, node3, self.estado_final = self.CreateSTARNodes(a, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
+        self.estado_inicial, node2, node3, self.estado_final = self.CreateCATNodes(None, a, True, self.estado_inicial, node2, node3, self.estado_final)
+        return self.estado_inicial, node2, node3, self.estado_final
+
+    def CreateOptionalNodes(self, a, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
+        node1, node2, node3, node4 = self.CreateORNodes(a, epsilon, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
+        return nodoInicial, nodoFA, node3, node4
 
     def ObtenerPrecedencia(self, operator):
         if operator == '|':
             return 1
         if operator == '.':
             return 2
-        if operator == '*':
+        if operator == '*' or operator == '+' or operator == '?':
             return 3
         return 0
 
@@ -312,6 +390,8 @@ class AFN:
         if operator == '|': return self.CreateORNodes(x, y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
         if operator == '.': return self.CreateCATNodes(x, y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
         if operator == '*': return self.CreateSTARNodes(y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
+        if operator == '+': return self.CreatePlusNodes(y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
+        if operator == '?': return self.CreateOptionalNodes(y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
 
     def EsSimbolo(self, digit):
         digitos = 'abcdefghijklmnopqrstuvwxyz'
@@ -348,7 +428,7 @@ class AFN:
                     val2 = simbolos.pop()
                     val1 = None
 
-                    if op != '*':
+                    if op != '*' and op != '+' and op != '?':
                         val1 = simbolos.pop()
                     
                     self.estado_inicial, intermedioA, intermedioB, self.estado_final = self.Operar(val1, val2, op, haGeneradoPrimerGrafo, self.estado_inicial, intermedioA, intermedioB, self.estado_final)
@@ -367,7 +447,7 @@ class AFN:
                     val2 = simbolos.pop()
                     val1 = None
 
-                    if op != '*':
+                    if op != '*' and op != '+' and op != '?':
                         val1 = simbolos.pop()
                     
                     self.estado_inicial, intermedioA, intermedioB, self.estado_final = self.Operar(val1, val2, op, haGeneradoPrimerGrafo, self.estado_inicial, intermedioA, intermedioB, self.estado_final)
@@ -386,7 +466,7 @@ class AFN:
             val2 = simbolos.pop()
             val1 = None
 
-            if op != '*':
+            if op != '*' and op != '+' and op != '?':
                 val1 = simbolos.pop()
             
             self.estado_inicial, intermedioA, intermedioB, self.estado_final = self.Operar(val1, val2, op, haGeneradoPrimerGrafo, self.estado_inicial, intermedioA, intermedioB, self.estado_final)
@@ -424,13 +504,12 @@ for n in afn.estados:
 
 print('------------------------------')
 
-for keys, values in afn.funcion_transicion.items():
-    print(f'({keys[0]}, {keys[1]}): {list(map(lambda nodo: nodo, values))}')
+utilities.CreateTransitionFunction(afn.estados)
 
 states = utilities.getStates(afn.estados)
 initial_state = str(afn.estado_inicial.id)
 accepting_state = {str(afn.estado_final.id)}
-transition_function = utilities.getTransitionFunction(afn.funcion_transicion)
+transition_function = utilities.CreateTransitionFunction(afn.estados)
 alphabet = utilities.getAlphabet(transition_function)
 
 utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function)

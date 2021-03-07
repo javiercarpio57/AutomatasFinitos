@@ -11,6 +11,22 @@ def getAlphabet(transicion):
 
     return { *alphabet }
 
+def CreateTransitionFunction(estados):
+    f = {}
+    for e in estados:
+        cont = 1
+        f[str(e.id)] = {}
+
+        for t in e.transitions:
+            symbol, node = [*t]
+
+            if str(symbol) in f[str(e.id)].keys():
+                f[str(e.id)][str(symbol) + ' '*cont] = str(node.id)
+                cont += 1
+            else:
+                f[str(e.id)][str(symbol)] = str(node.id)
+    return f
+
 def getTransitionFunction(transitions):
     f = {}
     for keys, values in transitions.items():
