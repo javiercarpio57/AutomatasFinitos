@@ -1,20 +1,255 @@
-import functools 
+import functools
 import utilities
+# import time
+import datetime
 
 epsilon = 'ε'
+
+class DFA_Node():
+    def __init__(self, name, nodos):
+        self.name = name
+        self.id = None
+        self.conjunto_nodos = nodos
+        self.transitions = []
+        self.isMarked = False
+        self.isFinal = False
+
+        self.CreateID(nodos)
+
+    def CreateID(self, nodos):
+        a = [n.id for n in nodos]
+        a.sort()
+        a = [str(i) for i in a]
+        self.id = ', '.join(a)
+
+    def Mark(self):
+        self.isMarked = True
+
+    def isAcceptingState(self):
+        self.isFinal = True
+
+class DFA():
+    def __init__(self, simbolos, estado_inicio, estado_fin):
+        self.estados = []
+        self.estado_inicial = None
+        self.estados_aceptacion = []
+        self.transiciones = []
+        self.simbolos = simbolos
+
+        self.count = 0
+        self.rounds = 1
+
+        self.CreateDFA(estado_inicio, estado_fin)
+
+    def Simulate_DFA(self, exp):
+        S = self.estado_inicial.name
+
+        for e in exp:
+            S = self.MoveSimulation(S, 'a')
+
+            if S == None:
+                return 'no'
+
+        if S in self.estados_aceptacion:
+            return 'yes'
+            
+        return 'no'
+
+    def CreateTransitionFunction(self):
+        f = {}
+        for t in self.transiciones:
+            i, s, fi = [*t]
+
+            if i not in f.keys():
+                f[i] = {}
+            f[i][s] = fi
+
+        return f
+
+    def GetStates(self):
+        return {s.name for s in self.estados}
+
+    def GetAcceptingStates(self):
+        return {s for s in self.estados_aceptacion}
+
+    def CreateDFA(self, inicial, final):
+        initial_state_DFA = self.e_closure([inicial])
+        self.estado_inicial = DFA_Node(self.GetName(), initial_state_DFA)
+        self.estados.append(self.estado_inicial)
+
+        while not self.MarkedState():
+            T = self.GetFirstUnmarkedState()
+            T.Mark()
+
+            for symbol in self.simbolos:
+                if symbol != epsilon:
+                    move = self.Move(T.conjunto_nodos, symbol)
+
+                    if len(move) > 0:
+                        cerradura = self.e_closure(move)
+                        U = DFA_Node(self.GetName(), cerradura)
+                        
+                        if U.id not in [s.id for s in self.estados]:
+                            if final.id in [c.id for c in cerradura]:
+                                U.isAcceptingState()
+                                self.estados_aceptacion.append(U.name)
+                            self.estados.append(U)
+                            self.transiciones.append((T.name, symbol, U.name))
+                        else:
+                            self.count -= 1
+                            for s in self.estados:
+                                if U.id == s.id:
+                                    self.transiciones.append((T.name, symbol, s.name))
+                            
+                        # self.transiciones.append((T.name, symbol, U.name))
+    
+    def GetName(self):
+        if self.count == 0:
+            self.count += 1
+            return 'S'
+
+        possible_names = ' ABCDEFGHIJKLMNOPQRTUVWXYZ'
+        name = possible_names[self.count]
+        self.count += 1
+
+        if self.count == len(possible_names):
+            self.rounds += 1
+            self.count = 0
+
+        return name * self.rounds
+
+    def GetFirstUnmarkedState(self):
+        for n in self.estados:
+            if not n.isMarked:
+                return n
+        
+    def MarkedState(self):
+        marks = [n.isMarked for n in self.estados]
+        return functools.reduce(lambda a, b: a and b, marks)
+
+    def CheckArrayStates(self, states, n):
+        return str(n.id) in [str(s.id) for s in states]
+
+    def e_closure(self, states):
+        stack = [] + states
+        closure = [] + states
+
+        while len(stack) != 0:
+            t = stack.pop()
+
+            for transition in t.transitions:
+                s, state = [*transition]
+                if epsilon == s:
+                    if not self.CheckArrayStates(closure, state):
+                        stack.append(state)
+                        closure.append(state)
+        return closure
+
+    def Move(self, T, symbol):
+        moves = []
+        for t in T:
+            for transition in t.transitions:
+                s, state = [*transition]
+                if symbol == s:
+                    moves.append(state)
+        return moves
+
+    def MoveSimulation(self, Nodo, symbol):
+        move = None
+        for i in self.transiciones:
+            if i[0] == Nodo and i[1] == symbol:
+                move = i[2]
+
+        return move
+
+class Node:
+    def __init__(self, codigo, transitions = []):
+        self.id = codigo
+        self.transitions = transitions
+
+    def toString(self):
+        return (f'Nodo: {self.id} --- {self.VerTransisiones()}')
+
+    def AddTransition(self, simbolo, estado):
+        self.transitions.append((simbolo, estado))
+
+    def VerTransisiones(self):
+        sTransicion = ''
+        for t in self.transitions:
+            sTransicion += f'\n\t{self.id} --> "{t[0]}" --> {t[1].id}'
+
+        return sTransicion
 
 class AFN:
     def __init__(self, expresion_regular):
         self.estado_inicial = None
         self.estado_final = None
         self.estados = []
-        self.funcion_transicion = {}
         self.simbolos = []
         self.ids = 0
 
         expresion_regular = self.CleanExpression(expresion_regular)
-        print(expresion_regular)
+        print('EXPRESION REESCRITA:', expresion_regular)
         self.Evaluar(expresion_regular)
+
+    def Simulate_NFA(self, exp):
+        S = self.e_closure([self.estado_inicial])
+
+        for e in exp:
+            S = self.e_closure(self.Move(S, e))
+
+        if str(self.estado_final.id) in [str(s.id) for s in S]:
+            return 'yes'
+        else:
+            return 'no'
+
+    def CheckArrayStates(self, states, n):
+        return str(n.id) in [str(s.id) for s in states]
+
+    def e_closure(self, states):
+        stack = [] + states
+        closure = [] + states
+
+        while len(stack) != 0:
+            t = stack.pop()
+
+            for transition in t.transitions:
+                s, state = [*transition]
+                if epsilon == s:
+                    if not self.CheckArrayStates(closure, state):
+                        stack.append(state)
+                        closure.append(state)
+
+        return closure
+
+    def Move(self, T, symbol):
+        moves = []
+        for t in T:
+            for transition in t.transitions:
+                s, state = [*transition]
+                if symbol == s:
+                    moves.append(state)
+
+        return moves
+
+    def GetStates(self):
+        return {str(s.id) for s in self.estados}
+
+    def CreateTransitionFunction(self):
+        f = {}
+        for e in self.estados:
+            cont = 1
+            f[str(e.id)] = {}
+
+            for t in e.transitions:
+                symbol, node = [*t]
+
+                if str(symbol) in f[str(e.id)].keys():
+                    f[str(e.id)][str(symbol) + ' '*cont] = str(node.id)
+                    cont += 1
+                else:
+                    f[str(e.id)][str(symbol)] = str(node.id)
+        return f
 
     def CleanExpression(self, regular):
         real = []
@@ -45,31 +280,55 @@ class AFN:
                     real.append(regular[i])
                 i += 1
 
-            return ''.join(real)
-        else:
-            return regular
+            regular = ''.join(real)
+
+        if ')?' in regular:
+            while i < len(regular):
+                if regular[i] == '(':
+                    initial.append(i)                        
+
+                if regular[i] == ')':
+                    real.append(regular[i])
+                    if regular[i + 1] == '?':
+                        final = i + 1
+                        real.append('|')
+                        real.append(epsilon)
+                        real.append(')')
+                        real.insert(initial[-1], '(')
+                        print(initial[-1])
+                        i += 1
+                    else:
+                        initial.pop()
+
+                else:
+                    real.append(regular[i])
+                i += 1
+
+            regular = ''.join(real)
+
+        regular_copy = regular
+        if '+' in regular:
+            while '+' in regular_copy:
+                i = regular_copy.find('+')
+                symbol = regular_copy[i - 1]
+
+                regular_copy = regular_copy.replace(symbol + '+', '(' + symbol + '*.' + symbol + ')')
+
+        if '?' in regular_copy:
+            while '?' in regular_copy:
+                i = regular_copy.find('?')
+                symbol = regular_copy[i - 1]
+
+                regular_copy = regular_copy.replace(symbol + '?', '(' + symbol + '|' + epsilon + ')')
+
+        return regular_copy
 
     def MergeNodes(self, nodeA, nodeB):
-        print('MERGE:', nodeA.id, nodeB.id)
-        print(nodeB.VerTransisiones())
+        print('MERGING:', nodeA.id, nodeB.id)
         # Quitar de estados
         nodeA.transitions += nodeB.transitions
         i = self.estados.index(nodeB)
         self.estados.pop(i)
-
-        # Funcion de transicion
-        for k, v in self.funcion_transicion.copy().items():
-            n, s = [*k]
-
-            if n == nodeB.id:
-                self.funcion_transicion.pop(k)
-                self.funcion_transicion[(nodeA.id, s)] = v
-
-    def AgregarTransicion(self, estado_i, trans, estado_f):
-        if (estado_i, trans) in self.funcion_transicion.keys():
-            self.funcion_transicion[(estado_i, trans)].append(estado_f)
-        else:
-            self.funcion_transicion[(estado_i, trans)] = [estado_f]
 
     def CreateORNodes(self, a, b, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
         if a not in self.simbolos and a != None:
@@ -100,14 +359,6 @@ class AFN:
             self.estados.append(nodoInicialB)
             self.estados.append(nodoI)
 
-            # Funcion de transicion
-            self.AgregarTransicion(nodoI.id, epsilon, nodoInicialA.id)
-            self.AgregarTransicion(nodoI.id, epsilon, nodoInicialB.id)
-            self.AgregarTransicion(nodoInicialA.id, a, nodoFinalA.id)
-            self.AgregarTransicion(nodoInicialB.id, b, nodoFinalB.id)
-            self.AgregarTransicion(nodoFinalA.id, epsilon, nodoF.id)
-            self.AgregarTransicion(nodoFinalB.id, epsilon, nodoF.id)
-
             return nodoI, nodoF, nodoI, nodoF
         else:
             if a != None and b != None:
@@ -133,14 +384,6 @@ class AFN:
                 self.estados.append(nodoInicialB)
                 self.estados.append(nodoI)
 
-                # Funcion de transicion
-                self.AgregarTransicion(nodoI.id, epsilon, nodoInicialA.id)
-                self.AgregarTransicion(nodoI.id, epsilon, nodoInicialB.id)
-                self.AgregarTransicion(nodoInicialA.id, a, nodoFinalA.id)
-                self.AgregarTransicion(nodoInicialB.id, b, nodoFinalB.id)
-                self.AgregarTransicion(nodoFinalA.id, epsilon, nodoF.id)
-                self.AgregarTransicion(nodoFinalB.id, epsilon, nodoF.id)
-
                 return nodoInicial, nodoFA, nodoI, nodoF
             elif a == None and b == None:
                 # Nodo final de OR
@@ -157,12 +400,6 @@ class AFN:
                 # Estados
                 self.estados.append(nodoF)
                 self.estados.append(nodoI)
-
-                # Funcion de transicion
-                self.AgregarTransicion(nodoI.id, epsilon, nodoInicial.id)
-                self.AgregarTransicion(nodoI.id, epsilon, nodoIB.id)
-                self.AgregarTransicion(nodoFA.id, epsilon, nodoF.id)
-                self.AgregarTransicion(nodoFinal.id, epsilon, nodoF.id)
 
                 return nodoI, nodoF, nodoI, nodoF
 
@@ -183,14 +420,10 @@ class AFN:
                 self.estados.append(nodoInicialB)
                 self.estados.append(nodoI)
 
-                # Funcion de transicion
-                self.AgregarTransicion(nodoI.id, epsilon, nodoInicial.id)
-                self.AgregarTransicion(nodoI.id, epsilon, nodoInicialB.id)
-                self.AgregarTransicion(nodoInicialB.id, b, nodoFinalB.id)
-                self.AgregarTransicion(nodoFinal.id, epsilon, nodoF.id)
-                self.AgregarTransicion(nodoFinalB.id, epsilon, nodoF.id)
-
-                return nodoI, nodoFA, nodoI, nodoF
+                if nodoFinal.id == nodoFA.id:
+                    return nodoI, nodoF, nodoIB, nodoF
+                else:
+                    return nodoI, nodoFA, nodoIB, nodoF
                 
             elif a != None and b == None:
                 nodoF = Node(self.ids + 4, [])
@@ -198,7 +431,7 @@ class AFN:
                 nodoFinalA = Node(self.ids + 3, [(epsilon, nodoF)])
                 nodoInicialA = Node(self.ids + 2, [(a, nodoFinalA)])
 
-                nodoI = Node(self.ids + 1, [(epsilon, nodoInicial), (epsilon, nodoInicialA)])
+                nodoI = Node(self.ids + 1, [(epsilon, nodoIB), (epsilon, nodoInicialA)])
                 nodoFinal.AddTransition(epsilon, nodoF)
 
                 self.ids += 4
@@ -209,14 +442,7 @@ class AFN:
                 self.estados.append(nodoInicialA)
                 self.estados.append(nodoI)
 
-                # Funcion de transicion
-                self.AgregarTransicion(nodoI.id, epsilon, nodoInicial.id)
-                self.AgregarTransicion(nodoI.id, epsilon, nodoInicialA.id)
-                self.AgregarTransicion(nodoInicialA.id, a, nodoFinalA.id)
-                self.AgregarTransicion(nodoFinal.id, epsilon, nodoF.id)
-                self.AgregarTransicion(nodoFinalA.id, epsilon, nodoF.id)
-
-                return nodoI, nodoF, nodoIB, nodoF
+                return nodoInicial, nodoFA, nodoI, nodoF
 
     def CreateCATNodes(self, a, b, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
         if a not in self.simbolos and a != None:
@@ -239,9 +465,6 @@ class AFN:
             self.estados.append(node2)
             self.estados.append(node3)
 
-            self.AgregarTransicion(node1.id, a, node2.id)
-            self.AgregarTransicion(node2.id, b, node3.id)
-
             return node1, node3, node1, node3
         else:
             if a != None and b != None:
@@ -259,9 +482,6 @@ class AFN:
                 self.estados.append(node2)
                 self.estados.append(node3)
 
-                self.AgregarTransicion(node1.id, a, node2.id)
-                self.AgregarTransicion(node2.id, b, node3.id)
-
                 return nodoInicial, nodoFA, node1, node3
             elif a == None and b == None:
                 self.MergeNodes(nodoFA, nodoIB)
@@ -271,19 +491,25 @@ class AFN:
             elif a != None and b == None:
                 nodoI = Node(self.ids + 1, [(a, nodoIB)])
                 self.estados.append(nodoI)
-                self.AgregarTransicion(nodoI.id, a, nodoIB.id)
                 self.ids += 1
 
-                return nodoI, nodoFinal, nodoI, nodoFinal
+                if nodoFinal.id == nodoFA.id:
+                    return nodoI, nodoF, nodoI, nodoFinal
+                else:
+                    return nodoInicial, nodoFA, nodoI, nodoFinal
+
+                # return nodoI, nodoFinal, nodoI, nodoFinal
 
             elif a == None and b != None:
                 nodoF = Node(self.ids + 1, [])
                 self.estados.append(nodoF)
-                self.AgregarTransicion(nodoFA.id, b, nodoF.id)
-                nodoFA.AddTransition(b, nodoF)
+                nodoFinal.AddTransition(b, nodoF)
                 self.ids += 1
 
-                return nodoInicial, nodoF, nodoInicial, nodoF
+                if nodoFinal.id == nodoFA.id:
+                    return nodoInicial, nodoF, nodoIB, nodoF
+                else:
+                    return nodoInicial, nodoFA, nodoIB, nodoF
 
     def CreateSTARNodes(self, a, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
         if not haGeneradoPrimerGrafo:
@@ -307,12 +533,6 @@ class AFN:
             self.estados.append(node3)
             self.estados.append(node4)
 
-            self.AgregarTransicion(node1.id, epsilon, node2.id)
-            self.AgregarTransicion(node1.id, epsilon, node4.id)
-            self.AgregarTransicion(node2.id, a, node3.id)
-            self.AgregarTransicion(node3.id, epsilon, node4.id)
-            self.AgregarTransicion(node3.id, epsilon, node2.id)
-
             return node1, node4, node1, node4
         else:
             if a == None:
@@ -328,11 +548,6 @@ class AFN:
 
                 self.estados.append(node1)
                 self.estados.append(node4)
-
-                self.AgregarTransicion(node1.id, epsilon, nodoInicial.id)
-                self.AgregarTransicion(node1.id, epsilon, node4.id)
-                self.AgregarTransicion(nodoFinal.id, epsilon, node4.id)
-                self.AgregarTransicion(nodoFinal.id, epsilon, nodoIB.id)
 
                 if nodoIB.id == nodoInicial.id:
                     return node1, node4, node1, node4
@@ -359,12 +574,6 @@ class AFN:
                 self.estados.append(node2)
                 self.estados.append(node3)
                 self.estados.append(node4)
-
-                self.AgregarTransicion(node1.id, epsilon, node2.id)
-                self.AgregarTransicion(node1.id, epsilon, node4.id)
-                self.AgregarTransicion(node2.id, a, node3.id)
-                self.AgregarTransicion(node3.id, epsilon, node4.id)
-                self.AgregarTransicion(node3.id, epsilon, node2.id)
 
                 return nodoInicial, nodoFA, node1, node4
 
@@ -394,7 +603,7 @@ class AFN:
         if operator == '?': return self.CreateOptionalNodes(y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
 
     def EsSimbolo(self, digit):
-        digitos = 'abcdefghijklmnopqrstuvwxyz'
+        digitos = 'abcdefghijklmnopqrstuvwxyz' + epsilon
         if digit in digitos:
             return True
         return False
@@ -476,40 +685,74 @@ class AFN:
             if not haGeneradoPrimerGrafo:
                 haGeneradoPrimerGrafo = True
 
-class Node:
-    def __init__(self, codigo, transitions = []):
-        self.id = codigo
-        self.transitions = transitions
-
-    def toString(self):
-        return (f'Nodo: {self.id} --- {self.VerTransisiones()}')
-
-    def AddTransition(self, simbolo, estado):
-        self.transitions.append((simbolo, estado))
-
-    def VerTransisiones(self):
-        sTransicion = ''
-        for t in self.transitions:
-            sTransicion += f'\n\t{self.id} --> "{t[0]}" --> {t[1].id}'
-
-        return sTransicion
-
 
 exp = input('Ingrese expresion regular: ')
+w = input('Ingrese una cadena: ')
+
+
 
 afn = AFN(exp)
 
-for n in afn.estados:
-    print(n.toString())
-
-print('------------------------------')
-
-utilities.CreateTransitionFunction(afn.estados)
-
-states = utilities.getStates(afn.estados)
+states = afn.GetStates()
 initial_state = str(afn.estado_inicial.id)
 accepting_state = {str(afn.estado_final.id)}
-transition_function = utilities.CreateTransitionFunction(afn.estados)
-alphabet = utilities.getAlphabet(transition_function)
+transition_function = afn.CreateTransitionFunction()
+alphabet, alphabet_print = utilities.getAlphabet(transition_function)
 
-utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function)
+# ------------------------------------------------------
+
+print('\n-------------------------------------------------------------')
+
+print('ESTADOS =', states)
+print('SIMBOLOS =', alphabet_print)
+print('INICIO =', {initial_state})
+print('ACEPTACION =', accepting_state)
+print('TRANSICION =', utilities.GetTransitions(transition_function))
+print('')
+
+begin_time = datetime.datetime.now()
+print(f'¿{w} cumple con {exp}?', afn.Simulate_NFA(w))
+total_time = (datetime.datetime.now() - begin_time).total_seconds()
+print(f' -- {total_time} seconds --')
+
+print('-------------------------------------------------------------\n')
+# ------------------------------------------------------
+
+utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'NFA')
+
+# ------------------------------------------------------
+
+
+
+
+dfa = DFA([s for s in alphabet_print], afn.estado_inicial, afn.estado_final)
+
+states = dfa.GetStates()
+initial_state = dfa.estado_inicial.name
+accepting_state = dfa.GetAcceptingStates()
+transition_function = dfa.CreateTransitionFunction()
+alphabet, alphabet_print = utilities.getAlphabet(transition_function)
+
+# ------------------------------------------------------
+
+print('\n-------------------------------------------------------------')
+
+print('ESTADOS =', states)
+print('SIMBOLOS =', alphabet_print)
+print('INICIO =', {initial_state})
+print('ACEPTACION =', accepting_state)
+print('TRANSICION =', utilities.GetTransitions(transition_function))
+
+print('')
+
+begin_time = datetime.datetime.now()
+print(f'¿{w} cumple con {exp}?', dfa.Simulate_DFA(w))
+total_time = (datetime.datetime.now() - begin_time).total_seconds()
+print(f' -- {total_time} seconds --')
+
+print('-------------------------------------------------------------\n')
+
+utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'DFA')
+utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'DFA_minimize', True)
+
+

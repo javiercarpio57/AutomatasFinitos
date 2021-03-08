@@ -1,7 +1,14 @@
 from pythomata import SimpleDFA
 
-def getStates(states):
-    return {str(s.id) for s in states}
+def GetTransitions(transitions):
+    trans = ''
+    for key, value in transitions.items():
+        for s, n in value.items():
+            s_real = s.replace(' ', '')
+            trans += f'({key}, {s_real}, {n})' + ' - '
+            # print(f'({key}, {s_real}, {n})')
+
+    return trans
 
 def getAlphabet(transicion):
     alphabet = []
@@ -9,41 +16,13 @@ def getAlphabet(transicion):
         for k in v.keys():
             alphabet.append(k)
 
-    return { *alphabet }
+    return { *alphabet }, { *[a.replace(' ', '') for a in alphabet] }
 
-def CreateTransitionFunction(estados):
-    f = {}
-    for e in estados:
-        cont = 1
-        f[str(e.id)] = {}
-
-        for t in e.transitions:
-            symbol, node = [*t]
-
-            if str(symbol) in f[str(e.id)].keys():
-                f[str(e.id)][str(symbol) + ' '*cont] = str(node.id)
-                cont += 1
-            else:
-                f[str(e.id)][str(symbol)] = str(node.id)
-    return f
-
-def getTransitionFunction(transitions):
-    f = {}
-    for keys, values in transitions.items():
-        cont = 1
-        f[str(keys[0])] = {}
-
-        for n in values:
-            if str(keys[1]) in f[str(keys[0])].keys():
-                f[str(keys[0])][str(keys[1]) + ' '*cont] = str(n)
-                cont += 1
-            else:
-                f[str(keys[0])][str(keys[1])] = str(n)
-
-    return f
-
-def graph_automata(states, alphabet, initial_state, accepting_states, transition_function):
+def graph_automata(states, alphabet, initial_state, accepting_states, transition_function, name, minimize = False):
     dfa = SimpleDFA(states, alphabet, initial_state, accepting_states, transition_function)
 
-    graph = dfa.to_graphviz()
-    graph.render('prueba')
+    if minimize:
+        graph = dfa.minimize().trim().to_graphviz()
+    else:
+        graph = dfa.to_graphviz()
+    graph.render(name)
