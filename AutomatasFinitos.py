@@ -5,6 +5,156 @@ import datetime
 
 epsilon = 'ε'
 
+class Minimization():
+    def __init__(self, funcion_transicion, estados, estados_aceptacion, simbolos, estado_inicial):
+        self.last_particion = []
+        self.new_particion = []
+        self.transiciones = funcion_transicion
+        self.estado_inicial = estado_inicial
+        self.estados_aceptacion = estados_aceptacion
+        self.estados = []
+
+        self.last_particion = self.CreatePartition(estados, estados_aceptacion)
+        self.Minimize(simbolos)
+
+    def CreateTransitionFunction(self):
+        f = {}
+        for t in self.transiciones:
+            i, s, fi = [*t]
+
+            if i not in f.keys():
+                f[i] = {}
+            f[i][s] = fi
+
+        return f
+
+    def GetStates(self):
+        return {s for s in self.estados}
+
+    def CreatePartition(self, estados, estados_aceptacion):
+        set1 = []
+        set2 = []
+        for e in estados:
+            if e in estados_aceptacion:
+                set1.append(e)
+            else:
+                set2.append(e)
+
+        return [set1, set2]
+
+    def Minimize(self, simbolos):
+        new = []
+        moreParition = [[]]
+        primeraVez = True
+        
+        while len(functools.reduce(lambda x, y: x + y, moreParition)) != 0 or primeraVez:
+            moreParition = []
+            if primeraVez:
+                primeraVez = False
+
+            for s in self.last_particion:
+                for symbol in simbolos:
+                    for estado_index_1 in range(0, len(s) - 1):
+                        if s[estado_index_1] in new:
+                            continue
+                        for estado_index_2 in range(estado_index_1 + 1, len(s)):
+                            if s[estado_index_2] in new:
+                                continue
+                            q_1 = s[estado_index_1]
+                            quien_q1 = self.GetMove(q_1, symbol)
+                            q_2 = s[estado_index_2]
+                            quien_q2 = self.GetMove(q_2, symbol)
+
+                            if quien_q1 == None or quien_q2 == None:
+                                continue
+
+                            grupo_q1 = self.GetGroup(self.last_particion, quien_q1)
+                            grupo_q2 = self.GetGroup(self.last_particion, quien_q2)
+
+                            if grupo_q1 != grupo_q2:
+                                new.append(q_2)
+                
+                moreParition.append(new)
+                new = []
+            self.last_particion = self.CreateMorePartitions(self.last_particion, moreParition)
+        self.estados = [i[0] for i in self.last_particion]
+
+        self.MergeNodes()
+            
+    def MergeNodes(self):
+        newEstadosFinal = []
+        for l in self.last_particion:
+            if self.estado_inicial in l:
+                self.estado_inicial = l[0]
+
+            for a in self.estados_aceptacion:
+                if a in l:
+                    newEstadosFinal.append(l[0])
+                    break
+        self.estados_aceptacion = newEstadosFinal
+
+        nuevasTransiciones = []
+        for transicion in self.transiciones:
+            for i in self.last_particion:
+                A, s, B = [*transicion]
+                nuevoA = ''
+                if A not in i:
+                    continue
+
+                if A in i:
+                    nuevoA = i[0]
+                else:
+                    nuevoA = A
+
+                nuevasTransiciones.append((nuevoA, s, B))
+                break
+
+        self.transiciones = nuevasTransiciones
+        nuevasTransiciones = []
+
+        for transicion in self.transiciones:
+            for i in self.last_particion:
+                A, s, B = [*transicion]
+                nuevoB = ''
+                if B not in i:
+                    continue
+
+                if B in i:
+                    nuevoB = i[0]
+                else:
+                    nuevoB = B
+
+                nuevasTransiciones.append((A, s, nuevoB))
+                break
+        self.transiciones = nuevasTransiciones
+        resultado = {t for t in self.transiciones}
+        self.transiciones = [r for r in resultado]
+
+    def CreateMorePartitions(self, partitions, more):
+        newPartition = []
+
+        for i in range(len(partitions)):
+            original = utilities.Diff(partitions[i], more[i])
+            if len(more[i]) > 0:
+                newPartition.append(more[i])
+            newPartition.append(original)
+        return newPartition
+
+    def GetGroup(self, particion, state):
+        pos = 0
+        for p in particion:
+            if state in p:
+                return pos
+            pos +=1
+
+    def GetMove(self, estado, simbolo):
+        for t in self.transiciones:
+            if estado == t[0] and simbolo == t[1]:
+                return t[2]
+
+        return None
+
+
 class DFA_Node():
     def __init__(self, name, nodos):
         self.name = name
@@ -45,7 +195,7 @@ class DFA():
         S = self.estado_inicial.name
 
         for e in exp:
-            S = self.MoveSimulation(S, 'a')
+            S = self.MoveSimulation(S, e)
 
             if S == None:
                 return 'no'
@@ -163,7 +313,7 @@ class DFA():
         return move
 
 class Node:
-    def __init__(self, codigo, transitions = []):
+    def __init__(self, codigo, transitions = [(epsilon, 2), ('x', 3)]):
         self.id = codigo
         self.transitions = transitions
 
@@ -295,7 +445,6 @@ class AFN:
                         real.append(epsilon)
                         real.append(')')
                         real.insert(initial[-1], '(')
-                        print(initial[-1])
                         i += 1
                     else:
                         initial.pop()
@@ -603,7 +752,7 @@ class AFN:
         if operator == '?': return self.CreateOptionalNodes(y, haGeneradoPrimerGrafo, nodoInicial, nodoFA, nodoIB, nodoFinal)
 
     def EsSimbolo(self, digit):
-        digitos = 'abcdefghijklmnopqrstuvwxyz' + epsilon
+        digitos = 'abcdefghijklmnopqrstuvwxyz0123456789' + epsilon
         if digit in digitos:
             return True
         return False
@@ -710,10 +859,10 @@ print('ACEPTACION =', accepting_state)
 print('TRANSICION =', utilities.GetTransitions(transition_function))
 print('')
 
-begin_time = datetime.datetime.now()
+begin_time1 = datetime.datetime.now()
 print(f'¿{w} cumple con {exp}?', afn.Simulate_NFA(w))
-total_time = (datetime.datetime.now() - begin_time).total_seconds()
-print(f' -- {total_time} seconds --')
+total_time1 = (datetime.datetime.now() - begin_time1)
+print(f' -- {total_time1} seconds --')
 
 print('-------------------------------------------------------------\n')
 # ------------------------------------------------------
@@ -745,14 +894,25 @@ print('TRANSICION =', utilities.GetTransitions(transition_function))
 
 print('')
 
-begin_time = datetime.datetime.now()
+begin_time2 = datetime.datetime.now()
 print(f'¿{w} cumple con {exp}?', dfa.Simulate_DFA(w))
-total_time = (datetime.datetime.now() - begin_time).total_seconds()
-print(f' -- {total_time} seconds --')
+total_time2 = (datetime.datetime.now() - begin_time2)
+print(f' -- {total_time2} seconds --')
 
 print('-------------------------------------------------------------\n')
 
 utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'DFA')
 utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'DFA_minimize', True)
 
+# ----------------------------------------------------------------------
 
+# print(dfa.transiciones)
+minimization = Minimization(dfa.transiciones, [e for e in states], [e for e in accepting_state], [s for s in alphabet_print], initial_state)
+utilities.graph_automata(
+    minimization.GetStates(),
+    alphabet,
+    minimization.estado_inicial,
+    {a for a in minimization.estados_aceptacion},
+    minimization.CreateTransitionFunction(),
+    'Minimization'
+)
