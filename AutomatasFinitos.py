@@ -643,7 +643,7 @@ class AFN:
                 self.ids += 1
 
                 if nodoFinal.id == nodoFA.id:
-                    return nodoI, nodoF, nodoI, nodoFinal
+                    return nodoI, nodoFA, nodoI, nodoFinal
                 else:
                     return nodoInicial, nodoFA, nodoI, nodoFinal
 
