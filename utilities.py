@@ -46,3 +46,8 @@ def graph_automata(states, alphabet, initial_state, accepting_states, transition
     else:
         graph = dfa.to_graphviz()
     graph.render(name)
+
+def write_file(text, filename):
+    f = open(filename, 'a', encoding='utf-8')
+    f.write(text)
+    f.close()

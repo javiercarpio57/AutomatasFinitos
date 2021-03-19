@@ -1,7 +1,7 @@
 import functools
 import utilities
-# import time
-import datetime
+from time import perf_counter
+# import datetime
 
 epsilon = 'ε'
 
@@ -256,7 +256,6 @@ class DFA():
                             if final.id in [c.id for c in cerradura]:
                                 U.isAcceptingState()
                                 self.estados_aceptacion.append(U.name)
-                            # print(U.id)
                             self.estados.append(U)
                             self.transiciones.append((T.name, symbol, U.name))
                         else:
@@ -265,7 +264,6 @@ class DFA():
                                 if U.id == s.id:
                                     self.transiciones.append((T.name, symbol, s.name))
                             
-                        # self.transiciones.append((T.name, symbol, U.name))
     
     def GetName(self):
         if self.count == 0:
@@ -353,7 +351,8 @@ class AFN():
         self.ids = 0
 
         expresion_regular = self.CleanExpression(expresion_regular)
-        print('EXPRESION REESCRITA:', expresion_regular)
+        expresion_regular = self.CreateConcat(expresion_regular)
+        print('EXPRESION FIXED:', expresion_regular)
         self.Evaluar(expresion_regular)
 
     def Simulate_NFA(self, exp):
@@ -415,6 +414,33 @@ class AFN():
                     f[str(e.id)][str(symbol)] = str(node.id)
         return f
 
+    def CreateConcat(self, expresion):
+        new = ''
+        operators = ['*','|','(','?','+']
+        cont = 0
+        while cont < len(expresion):
+            if cont+1 >= len(expresion):
+                new += expresion[-1]
+                break
+
+            if expresion[cont] == '*' and not (expresion[cont+1] in operators) and expresion[cont+1] != ')':
+                new += expresion[cont]+'.'
+            elif expresion[cont] == '*' and expresion[cont+1] == '(':
+                new += expresion[cont]+'.'
+            elif expresion[cont] == '?' and not (expresion[cont+1] in operators) and expresion[cont+1] != ')':
+                new += expresion[cont]+'.'
+            elif expresion[cont] == '?' and expresion[cont+1] == '(':
+                new += expresion[cont]+'.'
+            elif not (expresion[cont] in operators) and expresion[cont+1] == ')':
+                new += expresion[cont]
+            elif (not (expresion[cont] in operators) and not (expresion[cont+1] in operators)) or (not (expresion[cont] in operators) and (expresion[cont+1] == '(')):
+                new += expresion[cont]+'.'
+            else:
+                new += expresion[cont]
+        
+            cont += 1
+        return new
+
     def CleanExpression(self, regular):
         real = []
         exp = []
@@ -429,12 +455,12 @@ class AFN():
                 if regular[i] == '(':
                     initial.append(i)                        
 
-                if regular[i] == ')':
+                if regular[i] == ')' and i < len(regular) - 1:
                     real.append(regular[i])
                     if regular[i + 1] == '+':
                         final = i + 1
                         real.append('*')
-                        real.append('.')
+                        # real.append('.')
                         real.append(regular[initial.pop() : final])
                         i += 1
                     else:
@@ -475,7 +501,7 @@ class AFN():
                 i = regular_copy.find('+')
                 symbol = regular_copy[i - 1]
 
-                regular_copy = regular_copy.replace(symbol + '+', '(' + symbol + '*.' + symbol + ')')
+                regular_copy = regular_copy.replace(symbol + '+', '(' + symbol + '*' + symbol + ')')
 
         if '?' in regular_copy:
             while '?' in regular_copy:
@@ -484,10 +510,18 @@ class AFN():
 
                 regular_copy = regular_copy.replace(symbol + '?', '(' + symbol + '|' + epsilon + ')')
 
+        if regular_copy.count('(') > regular_copy.count(')'):
+            for i in range(regular_copy.count('(') - regular_copy.count(')')):
+                regular_copy += ')'
+                print(regular_copy)
+
+        elif regular_copy.count('(') < regular_copy.count(')'):
+            for i in range(regular_copy.count(')') - regular_copy.count('(')):
+                regular_copy = '(' + regular_copy
+
         return regular_copy
 
     def MergeNodes(self, nodeA, nodeB):
-        print('MERGING:', nodeA.id, nodeB.id)
         # Quitar de estados
         nodeA.transitions += nodeB.transitions
         i = self.estados.index(nodeB)
@@ -741,8 +775,6 @@ class AFN():
         
         self.estado_inicial, self.estado_final = simbolos.pop()
 
-
-
 class SyntaxTree():
     def __init__(self, regular_expression):
         self.count = 0
@@ -762,7 +794,8 @@ class SyntaxTree():
 
         self.follow_pos = {}
         regular_expression = self.CleanExpression(regular_expression)
-        print('regular exp:', regular_expression)
+        regular_expression = self.CreateConcat(regular_expression)
+        print('EXPRESION FIXED:', regular_expression)
         self.evaluate(regular_expression)
 
         for n in self.nodos:
@@ -771,8 +804,58 @@ class SyntaxTree():
                 break
 
         self.calculate_followpow()
+        print(self.follow_pos)
         self.create_dfa()
+
+    def Simulate_DFA(self, exp):
+        S = self.estado_inicial
+
+        for e in exp:
+            S = self.MoveSimulation(S, e)
+
+            if S == None:
+                return 'no'
+
+        if S in self.estados_aceptacion:
+            return 'yes'
+            
+        return 'no'
         
+    def MoveSimulation(self, Nodo, symbol):
+        move = None
+        for i in self.transiciones:
+            if i[0] == Nodo and i[1] == symbol:
+                move = i[2]
+
+        return move
+    
+    def CreateConcat(self, expresion):
+        new = ''
+        operators = ['*','|','(','?','+']
+        cont = 0
+        while cont < len(expresion):
+            if cont+1 >= len(expresion):
+                new += expresion[-1]
+                break
+
+            if expresion[cont] == '*' and not (expresion[cont+1] in operators) and expresion[cont+1] != ')':
+                new += expresion[cont]+'.'
+            elif expresion[cont] == '*' and expresion[cont+1] == '(':
+                new += expresion[cont]+'.'
+            elif expresion[cont] == '?' and not (expresion[cont+1] in operators) and expresion[cont+1] != ')':
+                new += expresion[cont]+'.'
+            elif expresion[cont] == '?' and expresion[cont+1] == '(':
+                new += expresion[cont]+'.'
+            elif not (expresion[cont] in operators) and expresion[cont+1] == ')':
+                new += expresion[cont]
+            elif (not (expresion[cont] in operators) and not (expresion[cont+1] in operators)) or (not (expresion[cont] in operators) and (expresion[cont+1] == '(')):
+                new += expresion[cont]+'.'
+            else:
+                new += expresion[cont]
+        
+            cont += 1
+        return new
+
     def create_transitions(self):
         f = {}
         for t in self.transiciones:
@@ -795,8 +878,8 @@ class SyntaxTree():
 
         while not self.marked_state():
             T = self.get_unmarked_state()
+            
             T.Mark()
-            print(len(self.estados))
 
             for s in self.simbolos:
                 fp = []
@@ -804,7 +887,8 @@ class SyntaxTree():
                 for u in T.conjunto_nodos:
                     if self.get_leaf(u).name == s:
                         fp += self.follow_pos[u]
-                
+                fp = {a for a in fp}
+                fp = [a for a in fp]
                 if len(fp) == 0:
                     continue
 
@@ -889,12 +973,12 @@ class SyntaxTree():
                 if regular[i] == '(':
                     initial.append(i)                        
 
-                if regular[i] == ')':
+                if regular[i] == ')' and i < len(regular) - 1:
                     real.append(regular[i])
                     if regular[i + 1] == '+':
                         final = i + 1
                         real.append('*')
-                        real.append('.')
+                        # real.append('.')
                         real.append(regular[initial.pop() : final])
                         i += 1
                     else:
@@ -935,7 +1019,7 @@ class SyntaxTree():
                 i = regular_copy.find('+')
                 symbol = regular_copy[i - 1]
 
-                regular_copy = regular_copy.replace(symbol + '+', '(' + symbol + '*.' + symbol + ')')
+                regular_copy = regular_copy.replace(symbol + '+', '(' + symbol + '*' + symbol + ')')
 
         if '?' in regular_copy:
             while '?' in regular_copy:
@@ -944,6 +1028,15 @@ class SyntaxTree():
 
                 regular_copy = regular_copy.replace(symbol + '?', '(' + symbol + '|' + epsilon + ')')
 
+        if regular_copy.count('(') > regular_copy.count(')'):
+            for i in range(regular_copy.count('(') - regular_copy.count(')')):
+                regular_copy += ')'
+
+        elif regular_copy.count('(') < regular_copy.count(')'):
+            for i in range(regular_copy.count(')') - regular_copy.count('(')):
+                regular_copy = '(' + regular_copy
+
+        regular_copy = '(' + regular_copy + ')#'
         return regular_copy
 
     def peek(self, stack):
@@ -1029,6 +1122,17 @@ class SyntaxTree():
             self.nodos += [right_leaf, root]
             return root
 
+        elif not isinstance(left, Leaf) and isinstance(right, Leaf):
+            id_left = None
+            if left != epsilon:
+                id_left = self.get_id()
+            
+            left_leaf = Leaf(left, id_left, False, [], False)
+            root = Leaf(operator, None, True, [left_leaf, right], left_leaf.nullable or right.nullable)
+
+            self.nodos += [left_leaf, root]
+            return root
+
     def operator_concat(self, left, right):
         operator = '.'
         if isinstance(left, Leaf) and isinstance(right, Leaf):
@@ -1061,6 +1165,17 @@ class SyntaxTree():
 
             self.nodos += [right_leaf, root]
             return root
+        
+        elif not isinstance(left, Leaf) and isinstance(right, Leaf):
+            id_left = None
+            if left != epsilon:
+                id_left = self.get_id()
+            
+            left_leaf = Leaf(left, id_left, False, [], False)
+            root = Leaf(operator, None, True, [left_leaf, right], left_leaf.nullable and right.nullable)
+
+            self.nodos += [left_leaf, root]
+            return root
 
     def greater_precedence(self, op1, op2):
         precedences = {'|' : 0, '.' : 1, '*' : 2}
@@ -1069,8 +1184,6 @@ class SyntaxTree():
     def evaluate(self, expression):
         values = []
         operators = []
-        left_root = None
-        right_root = None
         for token in expression:
             if self.is_symbol(token):
                 values.append(token)
@@ -1090,7 +1203,7 @@ class SyntaxTree():
             else:
                 top = self.peek(operators)
 
-                while top is not None and top not in "()" and self.greater_precedence(top, token):
+                while top is not None and top not in '()' and self.greater_precedence(top, token):
                     raiz = self.apply_operator(operators, values)
                     values.append(raiz)
                     top = self.peek(operators)
@@ -1101,7 +1214,6 @@ class SyntaxTree():
             values.append(raiz)
         self.root = values.pop()
             
-
 class Leaf():
     def __init__(self, name, position, is_operator, children, nullable):
         self.name = name
@@ -1157,103 +1269,134 @@ class Leaf():
 
 exp = input('Ingrese expresion regular: ')
 w = input('Ingrese una cadena: ')
+print('\n')
 
-# ----------------------------------------------------------------------
+# ------------------------- METODO DIRECTO ---------------------------------------------
 
-syntax = SyntaxTree('(' + exp + ').#')
+# try:
+print('\n-- AFD DIRECTO --')
+syntax = SyntaxTree(exp)
 
 states = {s.name for s in syntax.estados}
 initial_state = syntax.estado_inicial
 accepting_state = {s for s in syntax.estados_aceptacion}
 alphabet = {a for a in syntax.simbolos}
 transition_function = syntax.create_transitions()
-utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'Direct_DFA')
+alphabet, alphabet_print = utilities.getAlphabet(transition_function)
+
+start = perf_counter()
+resultado = syntax.Simulate_DFA(w)
+total = (perf_counter() - start)
+
+print(f'¿{w} cumple con {exp}?', resultado)
+print(' -- %.8f seconds --' % total)
+utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'grafos/DIRECT_AFD')
+
+syntax_file = f'''
+EXPRESION: {exp}
+ESTADOS = {states}
+SIMBOLOS = {alphabet_print}
+INICIO = {initial_state}
+ACEPTACION = {accepting_state}
+TRANSICION = {utilities.GetTransitions(transition_function)}
+'''
+
+utilities.write_file(syntax_file, 'RESULTADO_DIRECT_DFA.txt')
+# except:
+#     print('HA OCURRIDO UN ERROR CON METODO DIRECTO.')
+
+# ------------------------- MINIMIZACION METODO DIRECTO ---------------------------------------------
+
+try:
+    minimization_directo = Minimization(syntax.transiciones, [e for e in states], [e for e in accepting_state], [s for s in alphabet_print], initial_state)
+    utilities.graph_automata(
+        minimization_directo.GetStates(),
+        alphabet,
+        minimization_directo.estado_inicial,
+        {a for a in minimization_directo.estados_aceptacion},
+        minimization_directo.CreateTransitionFunction(),
+        'grafos/DIRECT_AFD_MINIMIZADO'
+    )
+except:
+    print('HA OCURRIDO UN ERROR CON MINIMIZACION DE METODO DIRECTO.')
 
 # ----------------------------------------------------------------------
 
-afn = AFN(exp)
+try:
+    print('\n-- AFN --')
+    afn = AFN(exp)
 
-states = afn.GetStates()
-initial_state = str(afn.estado_inicial.id)
-accepting_state = {str(afn.estado_final.id)}
-transition_function = afn.CreateTransitionFunction()
-alphabet, alphabet_print = utilities.getAlphabet(transition_function)
+    states = afn.GetStates()
+    initial_state = str(afn.estado_inicial.id)
+    accepting_state = {str(afn.estado_final.id)}
+    transition_function = afn.CreateTransitionFunction()
+    alphabet, alphabet_print = utilities.getAlphabet(transition_function)
 
-# ------------------------------------------------------
+    afn_file = f'''
+    EXPRESION: {exp}
+    ESTADOS = {states}
+    SIMBOLOS = {alphabet_print}
+    INICIO = {initial_state}
+    ACEPTACION = {accepting_state}
+    TRANSICION = {utilities.GetTransitions(transition_function)}
+    '''
+    utilities.write_file(afn_file, 'RESULTADO_AFN.txt')
 
-print('\n-------------------------  AFN  ------------------------------------')
+    begin_time1 = perf_counter()
+    respuesta = afn.Simulate_NFA(w)
+    total_time1 = (perf_counter() - begin_time1)
 
-print('ESTADOS =', states)
-print('SIMBOLOS =', alphabet_print)
-print('INICIO =', {initial_state})
-print('ACEPTACION =', accepting_state)
-print('TRANSICION =', utilities.GetTransitions(transition_function))
-print('')
+    print(f'¿{w} cumple con {exp}?', respuesta)
+    print(' -- %.8f seconds --' % total_time1)
 
-begin_time1 = datetime.datetime.now()
-print(f'¿{w} cumple con {exp}?', afn.Simulate_NFA(w))
-total_time1 = (datetime.datetime.now() - begin_time1)
-print(f' -- {total_time1} seconds --')
+    utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'grafos/NFA')
 
-print('-------------------------------------------------------------\n')
-# ------------------------------------------------------
-
-utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'NFA')
-
-# ------------------------------------------------------
-
-
-
-
-dfa = DFA([s for s in alphabet_print], afn.estado_inicial, afn.estado_final)
-
-states = dfa.GetStates()
-initial_state = dfa.estado_inicial.name
-accepting_state = dfa.GetAcceptingStates()
-transition_function = dfa.CreateTransitionFunction()
-alphabet, alphabet_print = utilities.getAlphabet(transition_function)
-
-# ------------------------------------------------------
-
-print('\n-------------------------  AFD  ------------------------------------')
-
-print('ESTADOS =', states)
-print('SIMBOLOS =', alphabet_print)
-print('INICIO =', {initial_state})
-print('ACEPTACION =', accepting_state)
-print('TRANSICION =', utilities.GetTransitions(transition_function))
-
-print('')
-
-begin_time2 = datetime.datetime.now()
-print(f'¿{w} cumple con {exp}?', dfa.Simulate_DFA(w))
-total_time2 = (datetime.datetime.now() - begin_time2)
-print(f' -- {total_time2} seconds --')
-
-print('-------------------------------------------------------------\n')
-
-utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'DFA')
-
-# ----------------------------------------------------------------------
-
-# print(dfa.transiciones)
-minimization = Minimization(dfa.transiciones, [e for e in states], [e for e in accepting_state], [s for s in alphabet_print], initial_state)
-utilities.graph_automata(
-    minimization.GetStates(),
-    alphabet,
-    minimization.estado_inicial,
-    {a for a in minimization.estados_aceptacion},
-    minimization.CreateTransitionFunction(),
-    'Minimization'
-)
+except:
+    print('HA OCURRIDO UN ERROR CON AFN.')
 
 
-# minimization = Minimization(syntax.transiciones, [e for e in states], [e for e in accepting_state], [s for s in alphabet_print], initial_state)
-# utilities.graph_automata(
-#     minimization.GetStates(),
-#     alphabet,
-#     minimization.estado_inicial,
-#     {a for a in minimization.estados_aceptacion},
-#     minimization.CreateTransitionFunction(),
-#     'Minimization'
-# )
+try:
+    print('\n-- AFD --')
+    dfa = DFA([s for s in alphabet_print], afn.estado_inicial, afn.estado_final)
+
+    states = dfa.GetStates()
+    initial_state = dfa.estado_inicial.name
+    accepting_state = dfa.GetAcceptingStates()
+    transition_function = dfa.CreateTransitionFunction()
+    alphabet, alphabet_print = utilities.getAlphabet(transition_function)
+
+    afd_file = f'''
+    EXPRESION: {exp}
+    ESTADOS = {states}
+    SIMBOLOS = {alphabet_print}
+    INICIO = {initial_state}
+    ACEPTACION = {accepting_state}
+    TRANSICION = {utilities.GetTransitions(transition_function)}
+    '''
+    utilities.write_file(afd_file, 'RESULTADO_AFD.txt')
+
+    begin_time2 = perf_counter()
+    resultado = dfa.Simulate_DFA(w)
+    total_time2 = (perf_counter() - begin_time2)
+
+    print(f'¿{w} cumple con {exp}?', resultado)
+    print(' -- %.8f seconds --' % total_time2)
+
+    utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'grafos/DFA')
+
+except:
+    print('HA OCURRIDO UN ERROR CON AFD.')
+
+
+try:
+    minimization = Minimization(dfa.transiciones, [e for e in states], [e for e in accepting_state], [s for s in alphabet_print], initial_state)
+    utilities.graph_automata(
+        minimization.GetStates(),
+        alphabet,
+        minimization.estado_inicial,
+        {a for a in minimization.estados_aceptacion},
+        minimization.CreateTransitionFunction(),
+        'grafos/AFD_MINIMIZACION'
+    )
+except:
+    print('HA OCURRIDO UN ERROR CON MINIMIZACION DE AFD.')
