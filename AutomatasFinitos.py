@@ -1273,37 +1273,37 @@ print('\n')
 
 # ------------------------- METODO DIRECTO ---------------------------------------------
 
-# try:
-print('\n-- AFD DIRECTO --')
-syntax = SyntaxTree(exp)
+try:
+    print('\n-- AFD DIRECTO --')
+    syntax = SyntaxTree(exp)
 
-states = {s.name for s in syntax.estados}
-initial_state = syntax.estado_inicial
-accepting_state = {s for s in syntax.estados_aceptacion}
-alphabet = {a for a in syntax.simbolos}
-transition_function = syntax.create_transitions()
-alphabet, alphabet_print = utilities.getAlphabet(transition_function)
+    states = {s.name for s in syntax.estados}
+    initial_state = syntax.estado_inicial
+    accepting_state = {s for s in syntax.estados_aceptacion}
+    alphabet = {a for a in syntax.simbolos}
+    transition_function = syntax.create_transitions()
+    alphabet, alphabet_print = utilities.getAlphabet(transition_function)
 
-start = perf_counter()
-resultado = syntax.Simulate_DFA(w)
-total = (perf_counter() - start)
+    start = perf_counter()
+    resultado = syntax.Simulate_DFA(w)
+    total = (perf_counter() - start)
 
-print(f'¿{w} cumple con {exp}?', resultado)
-print(' -- %.8f seconds --' % total)
-utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'grafos/DIRECT_AFD')
+    print(f'¿{w} cumple con {exp}?', resultado)
+    print(' -- %.8f seconds --' % total)
+    utilities.graph_automata(states, alphabet, initial_state, accepting_state, transition_function, 'grafos/DIRECT_AFD')
 
-syntax_file = f'''
-EXPRESION: {exp}
-ESTADOS = {states}
-SIMBOLOS = {alphabet_print}
-INICIO = {initial_state}
-ACEPTACION = {accepting_state}
-TRANSICION = {utilities.GetTransitions(transition_function)}
-'''
+    syntax_file = f'''
+    EXPRESION: {exp}
+    ESTADOS = {states}
+    SIMBOLOS = {alphabet_print}
+    INICIO = {initial_state}
+    ACEPTACION = {accepting_state}
+    TRANSICION = {utilities.GetTransitions(transition_function)}
+    '''
 
-utilities.write_file(syntax_file, 'RESULTADO_DIRECT_DFA.txt')
-# except:
-#     print('HA OCURRIDO UN ERROR CON METODO DIRECTO.')
+    utilities.write_file(syntax_file, 'RESULTADO_DIRECT_DFA.txt')
+except:
+    print('HA OCURRIDO UN ERROR CON METODO DIRECTO.')
 
 # ------------------------- MINIMIZACION METODO DIRECTO ---------------------------------------------
 
