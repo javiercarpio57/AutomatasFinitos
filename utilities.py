@@ -1,25 +1,11 @@
 from pythomata import SimpleDFA
 
+# Obtiene la diferencia entre dos listas
 def Diff(li1, li2):
     li_dif = [i for i in li1 + li2 if i not in li1 or i not in li2]
     return li_dif
 
-def Intersect(nums1, nums2):
-      m = {}
-      if len(nums1)<len(nums2):
-         nums1,nums2 = nums2,nums1
-      for i in nums1:
-         if i not in m:
-            m[i] = 1
-         else:
-            m[i]+=1
-      result = []
-      for i in nums2:
-         if i in m and m[i]:
-            m[i]-=1
-            result.append(i)
-      return result
-
+# Transforma 'transitions' a una estructura mas legible: [ (inicio, simbolo, fin), ... ]
 def GetTransitions(transitions):
     trans = ''
     for key, value in transitions.items():
@@ -30,6 +16,7 @@ def GetTransitions(transitions):
 
     return trans
 
+# Obtiene el alfabeto de la expresion regular
 def getAlphabet(transicion):
     alphabet = []
     for v in transicion.values():
@@ -38,6 +25,7 @@ def getAlphabet(transicion):
 
     return { *alphabet }, { *[a.replace(' ', '') for a in alphabet] }
 
+# Grafica el automata
 def graph_automata(states, alphabet, initial_state, accepting_states, transition_function, name, minimize = False):
     dfa = SimpleDFA(states, alphabet, initial_state, accepting_states, transition_function)
 
@@ -47,6 +35,7 @@ def graph_automata(states, alphabet, initial_state, accepting_states, transition
         graph = dfa.to_graphviz()
     graph.render(name)
 
+# Escribe a un archivo
 def write_file(text, filename):
     f = open(filename, 'a', encoding='utf-8')
     f.write(text)

@@ -17,6 +17,7 @@ class Minimization():
         self.last_particion = self.CreatePartition(estados, estados_aceptacion)
         self.Minimize(simbolos)
 
+    # Crea las transiciones a partir de las calculadas en los nodos.
     def CreateTransitionFunction(self):
         f = {}
         for t in self.transiciones:
@@ -28,9 +29,11 @@ class Minimization():
 
         return f
 
+    # Obtiene los estados de la minimizacion.
     def GetStates(self):
         return {s for s in self.estados}
 
+    # Crea las particiones para el algoritmo.
     def CreatePartition(self, estados, estados_aceptacion):
         set1 = []
         set2 = []
@@ -42,6 +45,7 @@ class Minimization():
 
         return [set1, set2]
 
+    # Implementacion del algoritmo de minimizacion.
     def Minimize(self, simbolos):
         new = []
         moreParition = [[]]
@@ -81,6 +85,7 @@ class Minimization():
 
         self.MergeNodes()
             
+    # Union entre dos nodos que son iguales, para reducir redundancias.
     def MergeNodes(self):
         newEstadosFinal = []
         for l in self.last_particion:
@@ -130,6 +135,7 @@ class Minimization():
         resultado = {t for t in self.transiciones}
         self.transiciones = [r for r in resultado]
 
+    # Creacion de las particiones generadas en el algoritmo.
     def CreateMorePartitions(self, partitions, more):
         newPartition = []
 
@@ -140,6 +146,7 @@ class Minimization():
             newPartition.append(original)
         return newPartition
 
+    # Obtener el numero de grupo al que pertenece un estado.
     def GetGroup(self, particion, state):
         pos = 0
         for p in particion:
@@ -147,6 +154,7 @@ class Minimization():
                 return pos
             pos +=1
 
+    # Obtiene el movimiento dado un estado y el simbolo.
     def GetMove(self, estado, simbolo):
         for t in self.transiciones:
             if estado == t[0] and simbolo == t[1]:
@@ -168,21 +176,25 @@ class DFA_Node():
         else:
             self.CreateID2(nodos)
 
+    # Metodo para crear un ID unico para el nodo.
     def CreateID(self, nodos):
         a = [n.id for n in nodos]
         a.sort()
         a = [str(i) for i in a]
         self.id = ', '.join(a)
 
+    # Metodo para crear ID unico para hoja de arbol sintactico.
     def CreateID2(self, nodos):
         a = [n for n in nodos]
         a.sort()
         a = [str(i) for i in a]
         self.id = ', '.join(a)
 
+    # Metodo para marcar un estado que ya ha sido visitado.
     def Mark(self):
         self.isMarked = True
 
+    # Metodo para definir un estado como de aceptacion.
     def isAcceptingState(self):
         self.isFinal = True
 
@@ -199,6 +211,7 @@ class DFA():
 
         self.CreateDFA(estado_inicio, estado_fin)
 
+    # Simulacion de una cadena en la expresion regular.
     def Simulate_DFA(self, exp):
         S = self.estado_inicial.name
 
@@ -213,6 +226,7 @@ class DFA():
             
         return 'no'
 
+    # Obtene la funcion de transicion del grafo generado.
     def CreateTransitionFunction(self):
         f = {}
         for t in self.transiciones:
@@ -224,12 +238,15 @@ class DFA():
 
         return f
 
+    # Obtiene el listado de nodos del grafo.
     def GetStates(self):
         return {s.name for s in self.estados}
 
+    # Obtiene el listado de nodos de aceptacion.
     def GetAcceptingStates(self):
         return {s for s in self.estados_aceptacion}
 
+    # Implementacion de algoritmo para generar AFD.
     def CreateDFA(self, inicial, final):
         initial_state_DFA = self.e_closure([inicial])
 
@@ -264,7 +281,7 @@ class DFA():
                                 if U.id == s.id:
                                     self.transiciones.append((T.name, symbol, s.name))
                             
-    
+    # Obtiene un nombre unico para el nodo.
     def GetName(self):
         if self.count == 0:
             self.count += 1
@@ -280,18 +297,22 @@ class DFA():
 
         return name * self.rounds
 
+    # Obtiene, si existe, un nodo que no esta marcado todavia.
     def GetFirstUnmarkedState(self):
         for n in self.estados:
             if not n.isMarked:
                 return n
         
+    # Metodo para verificar si existe algun nodo desmarcado.
     def MarkedState(self):
         marks = [n.isMarked for n in self.estados]
         return functools.reduce(lambda a, b: a and b, marks)
 
+    # Verifica si un estado esta dentro de un conjunto de estados.
     def CheckArrayStates(self, states, n):
         return str(n.id) in [str(s.id) for s in states]
 
+    # Implementacion de cerradura epsilon.
     def e_closure(self, states):
         stack = [] + states
         closure = [] + states
@@ -307,6 +328,7 @@ class DFA():
                         closure.append(state)
         return closure
 
+    # Implementacion de funcion Move dado un conjunto de estados y un simbolo.
     def Move(self, T, symbol):
         moves = []
         for t in T:
@@ -316,6 +338,7 @@ class DFA():
                     moves.append(state)
         return moves
 
+    # Implementacion de funcion Move para usarlo en simulacion.
     def MoveSimulation(self, Nodo, symbol):
         move = None
         for i in self.transiciones:
@@ -329,12 +352,15 @@ class Node():
         self.id = codigo
         self.transitions = transitions
 
+    # Obtiene la informacion del nodo.
     def toString(self):
         return (f'Nodo: {self.id} --- {self.VerTransisiones()}')
 
+    # Agrega una transicion al nodo.
     def AddTransition(self, simbolo, estado):
         self.transitions.append((simbolo, estado))
 
+    # Obtiene todas las transiciones del nodo.
     def VerTransisiones(self):
         sTransicion = ''
         for t in self.transitions:
@@ -355,6 +381,7 @@ class AFN():
         print('EXPRESION FIXED:', expresion_regular)
         self.Evaluar(expresion_regular)
 
+    # Simulacion de grafo AFN.
     def Simulate_NFA(self, exp):
         S = self.e_closure([self.estado_inicial])
 
@@ -366,9 +393,11 @@ class AFN():
         else:
             return 'no'
 
+    # Verifica que un nodo se encuentre en un conjunto de estados.
     def CheckArrayStates(self, states, n):
         return str(n.id) in [str(s.id) for s in states]
 
+    # Implementacion de cerradura epsilon
     def e_closure(self, states):
         stack = [] + states
         closure = [] + states
@@ -385,6 +414,7 @@ class AFN():
 
         return closure
 
+    # Implementacion de Move dado un conjunto de estados y simbolo
     def Move(self, T, symbol):
         moves = []
         for t in T:
@@ -395,9 +425,11 @@ class AFN():
 
         return moves
 
+    # Obtiene todo los estados del AFN
     def GetStates(self):
         return {str(s.id) for s in self.estados}
 
+    # Creacion de la funcion de transicion
     def CreateTransitionFunction(self):
         f = {}
         for e in self.estados:
@@ -414,6 +446,7 @@ class AFN():
                     f[str(e.id)][str(symbol)] = str(node.id)
         return f
 
+    # Agrega las operaciones concatenacion.
     def CreateConcat(self, expresion):
         new = ''
         operators = ['*','|','(','?','+']
@@ -441,6 +474,7 @@ class AFN():
             cont += 1
         return new
 
+    # Transformacion de la expresion regular a una que entienda el programa
     def CleanExpression(self, regular):
         real = []
         exp = []
@@ -521,12 +555,14 @@ class AFN():
 
         return regular_copy
 
+    # Metodo para unir dos nodos que son iguales.
     def MergeNodes(self, nodeA, nodeB):
         # Quitar de estados
         nodeA.transitions += nodeB.transitions
         i = self.estados.index(nodeB)
         self.estados.pop(i)
 
+    # Creacion de nodos de operacion |
     def CreateORNodes(self, a, b):
         if type(a) == tuple and type(b) == tuple:
             a_inicial, a_final = [*a]
@@ -612,6 +648,7 @@ class AFN():
             self.estados.append(nodoI)
             return nodoI, nodoF  
 
+    # Creacion de nodos por operacion de concatenacion
     def CreateCATNodes(self, a, b):
         if type(a) == tuple and type(b) == tuple:
             a_inicial, a_final = [*a]
@@ -653,6 +690,7 @@ class AFN():
             
             return a_inicial, nodoF
 
+    # Creacion de nodos por operacion de cerradura kleene
     def CreateSTARNodes(self, a, haGeneradoPrimerGrafo = False, nodoInicial = None, nodoFA = None, nodoIB = None, nodoFinal = None):
         if type(a) == tuple:
             a_inicial, a_final = [*a]
@@ -692,6 +730,7 @@ class AFN():
             self.estados.append(node4)
             return node1, node4
 
+    # Obtiene la precedencia de operadores
     def ObtenerPrecedencia(self, operator):
         if operator == '|':
             return 1
@@ -701,17 +740,20 @@ class AFN():
             return 3
         return 0
 
+    # Realiza la operacion entre los operandos dado un operador
     def Operar(self, x, y, operator):
         if operator == '|': return self.CreateORNodes(x, y)
         if operator == '.': return self.CreateCATNodes(x, y)
         if operator == '*': return self.CreateSTARNodes(y)
 
+    # Determina si el token es un simbolo
     def EsSimbolo(self, digit):
         digitos = 'abcdefghijklmnopqrstuvwxyz0123456789' + epsilon
         if digit in digitos:
             return True
         return False
 
+    # Evaluacion de la expresion regular.
     def Evaluar(self, expresion):
         simbolos = []
         operaciones = []
@@ -807,6 +849,7 @@ class SyntaxTree():
         print(self.follow_pos)
         self.create_dfa()
 
+    # Simulacion de AFD
     def Simulate_DFA(self, exp):
         S = self.estado_inicial
 
@@ -821,6 +864,7 @@ class SyntaxTree():
             
         return 'no'
         
+    # Implementacion de Move para la simulacion
     def MoveSimulation(self, Nodo, symbol):
         move = None
         for i in self.transiciones:
@@ -829,6 +873,7 @@ class SyntaxTree():
 
         return move
     
+    # Agrega los operadores concatenacion
     def CreateConcat(self, expresion):
         new = ''
         operators = ['*','|','(','?','+']
@@ -856,6 +901,7 @@ class SyntaxTree():
             cont += 1
         return new
 
+    # Crea las transiciones del grafo
     def create_transitions(self):
         f = {}
         for t in self.transiciones:
@@ -867,8 +913,10 @@ class SyntaxTree():
 
         return f
 
+    # Genera los nodos y transiciones para el AFD
     def create_dfa(self):
         s0 = self.root.first_pos
+        print(s0)
         s0_dfa = DFA_Node(self.get_name(), s0, True)
         self.estados.append(s0_dfa)
         self.estado_inicial = s0_dfa.name
@@ -895,27 +943,33 @@ class SyntaxTree():
                 U = DFA_Node(self.get_name(), fp, True)
 
                 if U.id not in [n.id for n in self.estados]:
+                    print(fp)
                     if self.estado_final in [u for u in U.conjunto_nodos]:
                         self.estados_aceptacion.append(U.name)
                     
                     self.estados.append(U)
+                    print((T.conjunto_nodos, s, U.conjunto_nodos))
                     self.transiciones.append((T.name, s, U.name))
                 else:
                     self.count -= 1
                     for estado in self.estados:
                         if U.id == estado.id:
                             self.transiciones.append((T.name, s, estado.name))
+                            print((T.conjunto_nodos, s, estado.conjunto_nodos))
 
+    # Obtiene la hoja a traves de su nombre
     def get_leaf(self, name):
         for n in self.nodos:
             if n.position == name:
                 return n
 
+    # Obtiene el estado unmarked
     def get_unmarked_state(self):
         for n in self.estados:
             if not n.isMarked:
                 return n
 
+    # Obtiene el nombre para asignarlo al nodo
     def get_name(self):
         if self.count == 0:
             self.count += 1
@@ -931,6 +985,7 @@ class SyntaxTree():
 
         return name * self.rounds
 
+    # Se realiza el calculo de followpos
     def calculate_followpow(self):
         for n in self.nodos:
             if not n.is_operator and not n.nullable:
@@ -947,10 +1002,12 @@ class SyntaxTree():
                 for i in n.last_pos:
                     self.add_followpos(i, n.first_pos)                
 
+    # Revisa si existe algun estado desmarcado
     def marked_state(self):
         marks = [n.isMarked for n in self.estados]
         return functools.reduce(lambda a, b: a and b, marks)
 
+    # Agrega un followpos
     def add_followpos(self, pos, val):
         if pos not in self.follow_pos.keys():
             self.follow_pos[pos] = []
@@ -959,6 +1016,7 @@ class SyntaxTree():
         self.follow_pos[pos] = {i for i in self.follow_pos[pos]}
         self.follow_pos[pos] = [i for i in self.follow_pos[pos]]
 
+    # Convierte la expresion a una que pueda leer el programa
     def CleanExpression(self, regular):
         real = []
         exp = []
@@ -1039,19 +1097,23 @@ class SyntaxTree():
         regular_copy = '(' + regular_copy + ')#'
         return regular_copy
 
+    # Obtiene el ultimo elemento guardado en el stack
     def peek(self, stack):
         return stack[-1] if stack else None
 
+    # Determina si el token es un simbolo
     def is_symbol(self, s):
         digitos = 'abcdefghijklmnopqrstuvwxyz0123456789#' + epsilon
         if s in digitos:
             return True
         return False
 
+    # Obtiene el ID del nodo
     def get_id(self):
         self.id += 1
         return self.id
 
+    # Implementacion de la creacion del arbol sintactico
     def apply_operator(self, operators, values):
         operator = operators.pop()
         right = values.pop()
@@ -1070,6 +1132,7 @@ class SyntaxTree():
         elif operator == '.': return self.operator_concat(left, right)
         elif operator == '*': return self.operator_kleene(right)
 
+    # Operacion kleen
     def operator_kleene(self, leaf):
         operator = '*'
         if isinstance(leaf, Leaf):
@@ -1088,6 +1151,7 @@ class SyntaxTree():
 
             return root
 
+    # Operacion OR
     def operator_or(self, left, right):
         operator = '|'
         if isinstance(left, Leaf) and isinstance(right, Leaf):
@@ -1133,6 +1197,7 @@ class SyntaxTree():
             self.nodos += [left_leaf, root]
             return root
 
+    # Operacion concatenacion
     def operator_concat(self, left, right):
         operator = '.'
         if isinstance(left, Leaf) and isinstance(right, Leaf):
@@ -1177,10 +1242,12 @@ class SyntaxTree():
             self.nodos += [left_leaf, root]
             return root
 
+    # Obtiene la precedencia entre dos operadores
     def greater_precedence(self, op1, op2):
         precedences = {'|' : 0, '.' : 1, '*' : 2}
         return precedences[op1] >= precedences[op2]
     
+    # Implementacion de la creacion del arbol sintactico
     def evaluate(self, expression):
         values = []
         operators = []
@@ -1232,9 +1299,11 @@ class Leaf():
         self.AddFirstPos()
         self.AddLastPos()
 
+    # Obtiene el nombre de la hoja
     def GetName(self):
         return f'{self.name} - {self.position}'
 
+    # Agrega el firstpos de la hoja
     def AddFirstPos(self):
         if self.is_operator:
             if self.name == '|':
@@ -1250,6 +1319,7 @@ class Leaf():
             if self.name != epsilon:
                 self.first_pos.append(self.position)
 
+    # Agrega el lastpos de la hoja
     def AddLastPos(self):
         if self.is_operator:
             if self.name == '|':
@@ -1320,7 +1390,7 @@ try:
 except:
     print('HA OCURRIDO UN ERROR CON MINIMIZACION DE METODO DIRECTO.')
 
-# ----------------------------------------------------------------------
+# ------------------------- METODO AFN ---------------------------------------------
 
 try:
     print('\n-- AFN --')
@@ -1354,6 +1424,7 @@ try:
 except:
     print('HA OCURRIDO UN ERROR CON AFN.')
 
+# ------------------------- METODO AFD ---------------------------------------------
 
 try:
     print('\n-- AFD --')
@@ -1387,6 +1458,7 @@ try:
 except:
     print('HA OCURRIDO UN ERROR CON AFD.')
 
+# ------------------------- MINIMIZACION METODO AFD ---------------------------------------------
 
 try:
     minimization = Minimization(dfa.transiciones, [e for e in states], [e for e in accepting_state], [s for s in alphabet_print], initial_state)
